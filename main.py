@@ -13,67 +13,35 @@ import openai
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-
 # amend here to change your preset language
 chat_language = os.getenv("INIT_LANGUAGE", default="id")
 
-MSG_LIST_LIMIT = int(os.getenv("MSG_LIST_LIMIT", default=20))
-LANGUAGE_TABLE = {
-    "id": "HALLO！",
-          "zh": "哈囉！",
-          "en": "Hello!",
-    "jp": "こんにちは"
-}
-
-
-class Prompts:
-    def __init__(self):
-        self.msg_list = []
-        self.msg_list.append(f"AI:{LANGUAGE_TABLE[chat_language]}")
-
-    def add_msg(self, new_msg):
-        if len(self.msg_list) >= MSG_LIST_LIMIT:
-            self.remove_msg()
-        self.msg_list.append(new_msg)
-
-    def remove_msg(self):
-        self.msg_list.pop(0)
-
-    def generate_prompt(self):
-        return '\n'.join(self.msg_list)
+conversation = []
 
 
 class ChatGPT:
-    def __init__(self):
-        self.prompt = Prompts()
-        self.model = os.getenv("OPENAI_MODEL", default="text-davinci-003")
-        self.temperature = float(os.getenv("OPENAI_TEMPERATURE", default=0))
-        self.frequency_penalty = float(
-            os.getenv("OPENAI_FREQUENCY_PENALTY", default=0))
-        self.presence_penalty = float(
-            os.getenv("OPENAI_PRESENCE_PENALTY", default=0.6))
-        self.max_tokens = int(os.getenv("OPENAI_MAX_TOKENS", default=240))
 
-    def get_response(self):
-        response = openai.Completion.create(
+    def __init__(self):
+
+        self.messages = conversation
+        self.model = os.getenv("OPENAI_MODEL", default="gpt-3.5-turbo")
+
+    def get_response(self, user_input):
+        conversation.append({"role": "user", "content": user_input})
+
+        response = openai.ChatCompletion.create(
             model=self.model,
-            prompt=self.prompt.generate_prompt(),
-            temperature=self.temperature,
-            frequency_penalty=self.frequency_penalty,
-            presence_penalty=self.presence_penalty,
-            max_tokens=self.max_tokens
+            messages=self.messages
+
         )
 
-        print("AI回答內容：")
-        print(response['choices'][0]['text'].strip())
+        conversation.append(
+            {"role": "assistant", "content": response['choices'][0]['message']['content']})
 
-        print("AI原始回覆資料內容：")
-        print(response)
+        print("Konten jawaban AI:")
+        print(response['choices'][0]['message']['content'].strip())
 
-        return response['choices'][0]['text'].strip()
-
-    def add_msg(self, text):
-        self.prompt.add_msg(text)
+        return response['choices'][0]['message']['content'].strip()
 
 
 #####################
@@ -113,10 +81,9 @@ def reply_handler(bot, update):
     # update.message.reply_text(text)
     chatgpt = ChatGPT()
 
-    # 人類的問題 the question humans asked
-    chatgpt.prompt.add_msg(update.message.text)
+    # update.message.text 人類的問題 the question humans asked
     # ChatGPT產生的回答 the answers that ChatGPT gave
-    ai_reply_response = chatgpt.get_response()
+    ai_reply_response = chatgpt.get_response(update.message.text)
 
     # 用AI的文字回傳 reply the text that AI made
     update.message.reply_text(ai_reply_response)
